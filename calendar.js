@@ -59,22 +59,44 @@
 
 
   /* =========================================================
-     НАША ВЕРХНЯЯ ПАНЕЛЬ
+     ГЕОМЕТРИЯ МЕСЯЦА
      ========================================================= */
 
-  function setDobroHeader() {
+  function setMonthGeometry() {
 
     if (typeof scheduler === "undefined") {
       return;
     }
 
     /*
-     * Используем штатную систему DHTMLX.
-     * Первая строка — месяц и год.
-     * Вторая — назад, вперёд, сегодня.
-     *
-     * Hamburger/menu сюда специально не включаем.
+     * Это штатные настройки DHTMLX.
+     * Они задают место для номера дня и высоту событий.
      */
+
+    if (window.innerWidth <= 650) {
+
+      scheduler.xy.month_scale_height = 30;
+      scheduler.xy.bar_height = 19;
+
+    } else if (window.innerWidth <= 1000) {
+
+      scheduler.xy.month_scale_height = 34;
+      scheduler.xy.bar_height = 21;
+
+    } else {
+
+      scheduler.xy.month_scale_height = 40;
+      scheduler.xy.bar_height = 24;
+    }
+  }
+
+
+  /* =========================================================
+     HEADER
+     ========================================================= */
+
+  function setDobroHeader() {
+
     scheduler.config.header = {
       rows: [
         {
@@ -97,7 +119,7 @@
 
 
   /* =========================================================
-     ПОЗИЦИЯ ВСПЛЫВАЮЩЕЙ КАРТОЧКИ
+     ПОЗИЦИЯ КАРТОЧКИ
      ========================================================= */
 
   function repositionQuickInfo() {
@@ -118,9 +140,10 @@
 
 
       /*
-       * Если карточка выходит вниз —
+       * Если карточка выходит вниз,
        * поднимаем её.
        */
+
       if (rect.bottom > window.innerHeight - margin) {
 
         var overflow =
@@ -139,14 +162,15 @@
         popup.style.top =
           Math.max(
             margin,
-            currentTop - overflow - 8
+            currentTop - overflow - 10
           ) + "px";
       }
 
 
       /*
-       * Не даём карточке уйти выше окна.
+       * Не даём уйти выше экрана.
        */
+
       var corrected =
         popup.getBoundingClientRect();
 
@@ -175,80 +199,57 @@
   function applyChanges() {
 
     if (typeof scheduler === "undefined") {
-      setTimeout(applyChanges, 300);
+
+      setTimeout(
+        applyChanges,
+        300
+      );
+
       return;
     }
 
 
-    /* ---------------------------------------------------------
-       HEADER
-       --------------------------------------------------------- */
-
     setDobroHeader();
+    setMonthGeometry();
 
 
-    /*
-     * OWC сам пересобирает header при смене месяца
-     * и изменении размера окна.
-     * Поэтому после его действий снова возвращаем наш header.
-     */
-
-    if (!window.dobroHeaderEventsAttached) {
-
-      window.dobroHeaderEventsAttached = true;
-
-      scheduler.attachEvent(
-        "onBeforeViewChange",
-        function () {
-          setDobroHeader();
-          return true;
-        }
-      );
-
-      scheduler.attachEvent(
-        "onSchedulerResize",
-        function () {
-          setDobroHeader();
-          return true;
-        }
-      );
-    }
-
-
-    /* ---------------------------------------------------------
-       МЕСЯЦ + ГОД
-       --------------------------------------------------------- */
+    /* =========================================================
+       МЕСЯЦ И ГОД
+       ========================================================= */
 
     scheduler.templates.month_date =
       function (date) {
 
         return (
           "<div class=\"dobro-month-title\">" +
+
             "<div class=\"dobro-month-name\">" +
               getRussianMonth(date) +
             "</div>" +
+
             "<div class=\"dobro-month-year\">" +
               date.getFullYear() +
             "</div>" +
+
           "</div>"
         );
       };
 
 
-    /* ---------------------------------------------------------
+    /* =========================================================
        ДНИ НЕДЕЛИ
-       --------------------------------------------------------- */
+       ========================================================= */
 
     scheduler.templates.month_scale_date =
       function (date) {
+
         return getRussianWeekday(date);
       };
 
 
-    /* ---------------------------------------------------------
+    /* =========================================================
        НОМЕР ДНЯ
-       ВАЖНО: сам .dhx_month_head больше НЕ переделываем.
-       --------------------------------------------------------- */
+       ========================================================= */
 
     scheduler.templates.month_day =
       function (date) {
@@ -261,20 +262,36 @@
       };
 
 
-    /* ---------------------------------------------------------
+    /* =========================================================
        ВСПЛЫВАЮЩАЯ КАРТОЧКА
-       --------------------------------------------------------- */
+       ========================================================= */
 
     scheduler.templates.quick_info_title =
       function (start, end, event) {
 
-        return escapeHtml(event.text);
+        return (
+          "<div class=\"dobro-popup-title\">" +
+
+            "<div class=\"dobro-popup-title-text\">" +
+              escapeHtml(event.text) +
+            "</div>" +
+
+            "<button " +
+              "type=\"button\" " +
+              "class=\"dobro-popup-close\" " +
+              "aria-label=\"Закрыть\">" +
+              "×" +
+            "</button>" +
+
+          "</div>"
+        );
       };
 
 
     /*
-     * Убираем название календаря.
+     * Название календаря не показываем.
      */
+
     scheduler.templates.quick_info_date =
       function () {
         return "";
@@ -293,17 +310,22 @@
           formatTime(end);
 
 
-        /* Время */
+        /* ВРЕМЯ */
 
         if (startTime) {
 
           html +=
             "<div class=\"dobro-info-line\">" +
-              "<span class=\"dobro-info-icon\">◷</span>" +
+
+              "<span class=\"dobro-info-icon\">" +
+                "◷" +
+              "</span>" +
+
               "<span>" +
                 escapeHtml(startTime);
 
           if (endTime) {
+
             html +=
               "–" +
               escapeHtml(endTime);
@@ -311,11 +333,12 @@
 
           html +=
               "</span>" +
+
             "</div>";
         }
 
 
-        /* Место */
+        /* МЕСТО */
 
         if (event.location) {
 
@@ -328,23 +351,28 @@
 
             html +=
               "<div class=\"dobro-info-line\">" +
-                "<span class=\"dobro-info-icon\">⌖</span>" +
+
+                "<span class=\"dobro-info-icon\">" +
+                  "⌖" +
+                "</span>" +
+
                 "<span>" +
                   escapeHtml(place) +
                 "</span>" +
+
               "</div>";
           }
         }
 
 
-        /* ID события */
+        /* EVENT ID */
 
         var match =
           String(event.url || "")
             .match(/event_id=([^&]+)/);
 
 
-        /* Подробнее */
+        /* ПОДРОБНЕЕ */
 
         if (match) {
 
@@ -359,7 +387,9 @@
               "data-url=\"" +
               detailsUrl +
               "\">" +
+
               "Подробнее →" +
+
             "</button>";
         }
 
@@ -368,11 +398,13 @@
 
 
     /* =========================================================
-       СТИЛИ
+       CSS
        ========================================================= */
 
     var oldStyle =
-      document.getElementById("dobro-calendar-style");
+      document.getElementById(
+        "dobro-calendar-style"
+      );
 
     if (oldStyle) {
       oldStyle.remove();
@@ -412,6 +444,7 @@
         width:100% !important;
 
         height:calc(100vh - 28px) !important;
+
         min-height:620px !important;
 
         box-sizing:border-box !important;
@@ -424,12 +457,12 @@
 
         box-shadow:
           0 10px 30px
-          rgba(45,35,25,0.06) !important;
+          rgba(45,35,25,.06) !important;
       }
 
 
       /* =====================================================
-         ВЕРХНЯЯ ПАНЕЛЬ
+         ВЕРХНЯЯ ЧАСТЬ
          ===================================================== */
 
       .dhx_cal_navline {
@@ -451,12 +484,10 @@
       }
 
 
-      /*
-       * Прячем гамбургер Open Web Calendar.
-       */
-
       .owc_nav_burger_menu,
-      .hamburger-menu {
+      .hamburger-menu,
+      .dhx_cal_menu_button {
+
         display:none !important;
       }
 
@@ -470,6 +501,7 @@
         text-align:left !important;
 
         justify-content:flex-start !important;
+
         align-items:flex-start !important;
 
         overflow:visible !important;
@@ -481,10 +513,10 @@
       .dobro-month-title {
 
         display:flex !important;
+
         flex-direction:column !important;
 
         align-items:flex-start !important;
-        justify-content:flex-start !important;
 
         width:100% !important;
 
@@ -498,6 +530,7 @@
         padding:0 !important;
 
         font-size:40px !important;
+
         line-height:.95 !important;
 
         font-weight:900 !important;
@@ -513,6 +546,7 @@
         margin-top:5px !important;
 
         font-size:27px !important;
+
         line-height:1 !important;
 
         font-weight:400 !important;
@@ -522,7 +556,7 @@
 
 
       /* =====================================================
-         КНОПКИ НАВИГАЦИИ
+         НАВИГАЦИЯ
          ===================================================== */
 
       .dhx_cal_prev_button,
@@ -547,6 +581,7 @@
         color:#171717 !important;
 
         font-size:13px !important;
+
         font-weight:700 !important;
       }
 
@@ -555,6 +590,7 @@
       .dhx_cal_next_button {
 
         width:48px !important;
+
         min-width:48px !important;
       }
 
@@ -562,6 +598,7 @@
       .dhx_cal_today_button {
 
         width:96px !important;
+
         min-width:96px !important;
       }
 
@@ -602,8 +639,6 @@
 
         font-weight:800 !important;
 
-        line-height:1.1 !important;
-
         text-transform:uppercase !important;
       }
 
@@ -613,6 +648,7 @@
          ===================================================== */
 
       .dhx_cal_data {
+
         background:#FBF8F2 !important;
       }
 
@@ -626,31 +662,41 @@
 
 
       /*
-       * Ключевое исправление.
-       *
-       * Сам контейнер номера дня остаётся штатного размера.
-       * Мы больше НЕ превращаем его во flex,
-       * НЕ задаём ему ширину 36px
-       * и НЕ двигаем position/top/left.
+       * Теперь область номера дня снова занимает
+       * всю ширину ячейки.
        */
 
       .dhx_month_head {
 
-        background:#FBF8F2 !important;
+        left:0 !important;
+        right:auto !important;
 
-        border-color:#D8D0C5 !important;
+        width:100% !important;
 
-        color:#171717 !important;
+        height:40px !important;
+
+        box-sizing:border-box !important;
+
+        padding:
+          7px
+          0
+          0
+          8px !important;
 
         text-align:left !important;
 
-        box-sizing:border-box !important;
+        background:transparent !important;
+
+        border:0 !important;
+
+        color:#171717 !important;
       }
 
 
       /*
-       * Чёрная плашка теперь находится ВНУТРИ
-       * штатного контейнера номера дня.
+       * Цифра как на референсе:
+       * аккуратный чёрный квадрат,
+       * а не маленькая плавающая плашка.
        */
 
       .dobro-day-number {
@@ -658,33 +704,34 @@
         display:inline-flex !important;
 
         align-items:center !important;
+
         justify-content:center !important;
 
-        min-width:26px !important;
-        height:24px !important;
+        width:30px !important;
 
-        margin:
-          2px
-          0
-          0
-          6px !important;
+        height:27px !important;
 
-        padding:
-          0
-          5px !important;
+        margin:0 !important;
+        padding:0 !important;
 
         box-sizing:border-box !important;
 
         background:#171717 !important;
 
-        border-radius:5px !important;
+        border-radius:4px !important;
 
         color:#FFFFFF !important;
 
-        font-size:11px !important;
-        line-height:24px !important;
+        font-size:12px !important;
+
+        line-height:1 !important;
 
         font-weight:800 !important;
+
+        font-variant-numeric:
+          tabular-nums !important;
+
+        letter-spacing:0 !important;
       }
 
 
@@ -699,38 +746,63 @@
          СОБЫТИЯ
          ===================================================== */
 
-      .dhx_cal_event_clear {
+      /*
+       * События больше не должны попадать
+       * в область номера дня.
+       *
+       * Основной отступ задаётся через
+       * scheduler.xy.month_scale_height.
+       */
 
-        margin-left:6px !important;
-        margin-right:6px !important;
-
-        padding:
-          5px
-          9px !important;
+      .dhx_cal_event_clear,
+      .dhx_cal_event_line {
 
         box-sizing:border-box !important;
 
         border-radius:8px !important;
+
+        box-shadow:none !important;
 
         font-size:11px !important;
 
         line-height:1.2 !important;
 
         font-weight:650 !important;
+      }
+
+
+      .dhx_cal_event_clear {
+
+        margin-left:7px !important;
+        margin-right:7px !important;
+
+        padding:
+          5px
+          9px !important;
 
         white-space:nowrap !important;
 
         overflow:hidden !important;
 
         text-overflow:ellipsis !important;
-
-        box-shadow:none !important;
       }
 
 
-      /*
-       * Фиолетовый календарь
-       */
+      .dhx_cal_event_line {
+
+        padding:
+          4px
+          10px !important;
+
+        white-space:nowrap !important;
+
+        overflow:hidden !important;
+
+        text-overflow:ellipsis !important;
+      }
+
+
+      /* ФИОЛЕТОВЫЙ КАЛЕНДАРЬ */
 
       .CALENDAR-INDEX-0,
       .CALENDAR-INDEX-0 .dhx_body,
@@ -746,9 +818,7 @@
       }
 
 
-      /*
-       * Оранжевый календарь
-       */
+      /* ОРАНЖЕВЫЙ КАЛЕНДАРЬ */
 
       .CALENDAR-INDEX-1,
       .CALENDAR-INDEX-1 .dhx_body,
@@ -772,7 +842,7 @@
 
 
       /* =====================================================
-         QUICK INFO
+         ВСПЛЫВАЮЩАЯ КАРТОЧКА
          ===================================================== */
 
       .dhx_cal_quick_info {
@@ -786,6 +856,8 @@
 
         padding:0 !important;
 
+        box-sizing:border-box !important;
+
         background:#FBF8F2 !important;
 
         border:
@@ -795,9 +867,23 @@
 
         box-shadow:
           0 14px 34px
-          rgba(40,30,20,0.14) !important;
+          rgba(40,30,20,.14) !important;
 
         overflow:hidden !important;
+      }
+
+
+      /*
+       * Скрываем штатный крестик DHTMLX.
+       * У нас теперь свой.
+       */
+
+      .dhx_cal_quick_info
+      [class*="close"]:not(.dobro-popup-close),
+
+      .dhx_cal_qi_title::after {
+
+        display:none !important;
       }
 
 
@@ -811,7 +897,7 @@
 
         padding:
           18px
-          42px
+          50px
           5px
           20px !important;
 
@@ -823,11 +909,6 @@
       }
 
 
-      /*
-       * Здесь главное изменение:
-       * 23px -> 18px.
-       */
-
       .dhx_cal_qi_tcontent {
 
         height:auto !important;
@@ -837,11 +918,36 @@
         margin:0 !important;
         padding:0 !important;
 
+        white-space:normal !important;
+
+        overflow:visible !important;
+
+        text-overflow:clip !important;
+
+        color:#171717 !important;
+      }
+
+
+      .dobro-popup-title {
+
+        position:relative !important;
+
+        width:100% !important;
+
+        box-sizing:border-box !important;
+      }
+
+
+      .dobro-popup-title-text {
+
+        padding:0 !important;
+        margin:0 !important;
+
         color:#171717 !important;
 
-        font-size:18px !important;
+        font-size:17px !important;
 
-        line-height:1.18 !important;
+        line-height:1.2 !important;
 
         font-weight:800 !important;
 
@@ -849,13 +955,64 @@
 
         white-space:normal !important;
 
-        overflow:visible !important;
-
-        text-overflow:clip !important;
-
         overflow-wrap:break-word !important;
 
         word-break:normal !important;
+      }
+
+
+      /*
+       * НАШ КРЕСТИК.
+       * Теперь он гарантированно находится
+       * ВНУТРИ карточки.
+       */
+
+      .dobro-popup-close {
+
+        position:absolute !important;
+
+        top:-7px !important;
+        right:-36px !important;
+
+        display:flex !important;
+
+        align-items:center !important;
+
+        justify-content:center !important;
+
+        width:28px !important;
+        height:28px !important;
+
+        margin:0 !important;
+        padding:0 !important;
+
+        background:transparent !important;
+
+        border:0 !important;
+
+        border-radius:8px !important;
+
+        color:#171717 !important;
+
+        font-family:
+          Arial,
+          sans-serif !important;
+
+        font-size:23px !important;
+
+        line-height:1 !important;
+
+        font-weight:400 !important;
+
+        cursor:pointer !important;
+
+        pointer-events:auto !important;
+      }
+
+
+      .dobro-popup-close:hover {
+
+        background:#EFE7DC !important;
       }
 
 
@@ -917,9 +1074,8 @@
         min-width:16px !important;
 
         align-items:center !important;
-        justify-content:center !important;
 
-        color:#171717 !important;
+        justify-content:center !important;
 
         font-size:14px !important;
 
@@ -928,7 +1084,7 @@
 
 
       /* =====================================================
-         КНОПКА ПОДРОБНЕЕ
+         ПОДРОБНЕЕ
          ===================================================== */
 
       .dobro-details-button {
@@ -962,9 +1118,9 @@
 
         font-size:13px !important;
 
-        font-weight:800 !important;
-
         line-height:1.2 !important;
+
+        font-weight:800 !important;
 
         text-align:center !important;
 
@@ -989,11 +1145,10 @@
 
 
       /* =====================================================
-         ПЛАНШЕТЫ
+         ПЛАНШЕТ
          ===================================================== */
 
-      @media
-      (max-width:1000px) {
+      @media (max-width:1000px) {
 
         body {
           padding:8px !important;
@@ -1043,14 +1198,30 @@
         }
 
 
-        .dhx_cal_event_clear {
+        .dhx_month_head {
 
-          margin-left:3px !important;
-          margin-right:3px !important;
+          height:34px !important;
 
           padding:
-            4px
+            5px
+            0
+            0
             6px !important;
+        }
+
+
+        .dobro-day-number {
+
+          width:27px !important;
+
+          height:24px !important;
+
+          font-size:11px !important;
+        }
+
+
+        .dhx_cal_event_clear,
+        .dhx_cal_event_line {
 
           font-size:10px !important;
         }
@@ -1059,21 +1230,17 @@
 
 
       /* =====================================================
-         МОБИЛЬНАЯ ВЕРСИЯ
+         МОБИЛЬНЫЙ
          ===================================================== */
 
-      @media
-      (max-width:650px) {
+      @media (max-width:650px) {
 
         body {
-
           padding:4px !important;
         }
 
 
         .dhx_cal_container {
-
-          width:100% !important;
 
           height:
             calc(100vh - 8px) !important;
@@ -1114,76 +1281,53 @@
         }
 
 
-        .dhx_cal_prev_button,
-        .dhx_cal_next_button {
-
-          width:40px !important;
-
-          min-width:40px !important;
-
-          height:32px !important;
-
-          min-height:32px !important;
-        }
-
-
-        .dhx_cal_today_button {
-
-          width:82px !important;
-
-          min-width:82px !important;
-
-          height:32px !important;
-
-          min-height:32px !important;
-
-          font-size:11px !important;
-        }
-
-
         .dhx_scale_bar {
 
           font-size:8px !important;
+        }
 
-          font-weight:700 !important;
+
+        .dhx_month_head {
+
+          height:30px !important;
+
+          padding:
+            4px
+            0
+            0
+            4px !important;
         }
 
 
         .dobro-day-number {
 
-          min-width:21px !important;
+          width:23px !important;
 
-          height:20px !important;
+          height:21px !important;
 
-          margin-left:3px !important;
-
-          padding:
-            0
-            3px !important;
-
-          border-radius:4px !important;
+          border-radius:3px !important;
 
           font-size:9px !important;
+        }
 
-          line-height:20px !important;
+
+        .dhx_cal_event_clear,
+        .dhx_cal_event_line {
+
+          border-radius:5px !important;
+
+          font-size:8px !important;
         }
 
 
         .dhx_cal_event_clear {
 
-          margin-left:2px !important;
-
-          margin-right:2px !important;
+          margin-left:3px !important;
+          margin-right:3px !important;
 
           padding:
             3px
             4px !important;
-
-          border-radius:5px !important;
-
-          font-size:8px !important;
-
-          line-height:1.15 !important;
         }
 
 
@@ -1200,15 +1344,29 @@
 
           padding:
             16px
-            38px
+            44px
             4px
             17px !important;
         }
 
 
-        .dhx_cal_qi_tcontent {
+        .dobro-popup-title-text {
 
-          font-size:16px !important;
+          font-size:15px !important;
+        }
+
+
+        .dobro-popup-close {
+
+          top:-5px !important;
+
+          right:-31px !important;
+
+          width:25px !important;
+
+          height:25px !important;
+
+          font-size:21px !important;
         }
 
 
@@ -1249,12 +1407,25 @@
 
 
     /* =========================================================
-       QUICK INFO POSITION
+       СОБЫТИЯ SCHEDULER
        ========================================================= */
 
-    if (!window.dobroQuickInfoPositionAttached) {
+    if (!window.dobroEventsAttached) {
 
-      window.dobroQuickInfoPositionAttached = true;
+      window.dobroEventsAttached = true;
+
+
+      scheduler.attachEvent(
+        "onBeforeViewChange",
+        function () {
+
+          setDobroHeader();
+          setMonthGeometry();
+
+          return true;
+        }
+      );
+
 
       scheduler.attachEvent(
         "onQuickInfo",
@@ -1267,27 +1438,90 @@
       );
 
 
+      var resizeTimer = null;
+
       window.addEventListener(
         "resize",
-        repositionQuickInfo
+        function () {
+
+          repositionQuickInfo();
+
+          clearTimeout(resizeTimer);
+
+          resizeTimer =
+            setTimeout(function () {
+
+              setMonthGeometry();
+
+              try {
+                scheduler.updateView();
+              } catch (e) {}
+
+            }, 120);
+        }
       );
     }
 
 
-    /*
-     * Перерисовываем после смены шаблонов.
-     */
     try {
-
       scheduler.updateView();
-
     } catch (e) {}
   }
 
 
   /* =========================================================
+     КНОПКА ЗАКРЫТИЯ КАРТОЧКИ
+     ========================================================= */
+
+  document.addEventListener(
+    "mousedown",
+    function (e) {
+
+      var closeButton =
+        e.target.closest(
+          ".dobro-popup-close"
+        );
+
+      if (closeButton) {
+        e.stopPropagation();
+      }
+
+    },
+    true
+  );
+
+
+  document.addEventListener(
+    "click",
+    function (e) {
+
+      var closeButton =
+        e.target.closest(
+          ".dobro-popup-close"
+        );
+
+      if (!closeButton) {
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (
+        typeof scheduler !== "undefined" &&
+        typeof scheduler.hideQuickInfo === "function"
+      ) {
+
+        scheduler.hideQuickInfo();
+      }
+
+    },
+    true
+  );
+
+
+  /* =========================================================
      РАБОЧАЯ КНОПКА «ПОДРОБНЕЕ»
-     ЭТУ ЛОГИКУ НЕ МЕНЯЕМ.
      ========================================================= */
 
   document.addEventListener(
@@ -1302,6 +1536,7 @@
       if (button) {
         e.stopPropagation();
       }
+
     },
     true
   );
@@ -1331,6 +1566,7 @@
       if (url) {
         window.location.assign(url);
       }
+
     },
     true
   );
