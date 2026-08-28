@@ -1,58 +1,44 @@
 (function () {
-
   function applyChanges() {
-
     if (typeof scheduler === "undefined") {
-      setTimeout(applyChanges, 200);
+      setTimeout(applyChanges, 300);
       return;
     }
 
-    scheduler.templates.quick_info_title = function(start, end, event) {
+    scheduler.templates.quick_info_title = function (start, end, event) {
       return event.text;
     };
 
-    scheduler.templates.quick_info_content = function(start, end, event) {
-      let html = "";
+    scheduler.templates.quick_info_content = function (start, end, event) {
+      var html = "";
 
       if (event.location) {
-        const locationText =
-          typeof event.location === "object"
-            ? event.location.text
-            : event.location;
+        var place = typeof event.location === "object"
+          ? event.location.text
+          : event.location;
 
-        if (locationText) {
-          html +=
-            "<div style='margin-bottom:12px'>" +
-            locationText +
-            "</div>";
+        if (place) {
+          html += "<div style=\"margin-bottom:12px\">" + place + "</div>";
         }
       }
 
-      const match =
-        String(event.url || "").match(/event_id=([^&]+)/);
+      var match = String(event.url || "").match(/event_id=([^&]+)/);
 
       if (match) {
-        const eventId = encodeURIComponent(match[1]);
-
         html +=
-          "<a href='https://krisbaxtina-create.github.io/dobro-calendar/?event=" +
-          eventId +
-          "' target='_self' " +
-          "style='" +
-          "display:inline-block;" +
-          "margin-top:4px;" +
-          "color:#6d28d9;" +
-          "font-weight:700;" +
-          "text-decoration:none;" +
-          "cursor:pointer" +
-          "'>" +
-          "Подробнее →" +
-          "</a>";
+          "<a href=\"https://krisbaxtina-create.github.io/dobro-calendar/?event=" +
+          encodeURIComponent(match[1]) +
+          "\" target=\"_self\" style=\"color:#6d28d9;font-weight:700;text-decoration:none\">" +
+          "Подробнее →</a>";
       }
 
       return html;
     };
 
-    if (!document.getElementById("dobro-calendar-custom-style")) {
-      const style = document.createElement("style");
-      style.id = "dobro
+    var style = document.createElement("style");
+    style.textContent = ".dhx_qi_big_icon.icon_subscribe{display:none!important;}";
+    document.head.appendChild(style);
+  }
+
+  setTimeout(applyChanges, 1500);
+})();
