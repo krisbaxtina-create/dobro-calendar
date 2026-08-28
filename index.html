@@ -208,11 +208,11 @@ function escapeHTML(text) {
 async function loadEvent() {
 
   const params = new URLSearchParams(window.location.search);
-  const uid = params.get("uid");
+  const eventId = params.get("event");
 
   const content = document.getElementById("content");
 
-  if (!uid) {
+  if (!eventId) {
     content.innerHTML =
       '<div class="message">Мероприятие не выбрано.</div>';
     return;
@@ -231,9 +231,10 @@ async function loadEvent() {
     const events =
       raw.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) || [];
 
-    const event = events.find(block =>
-      getProperty(block, "UID") === uid
-    );
+    const event = events.find(block => {
+      const url = getProperty(block, "URL");
+      return url.includes("event_id=" + eventId);
+    });
 
     if (!event) {
       content.innerHTML =
