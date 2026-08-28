@@ -1,7 +1,7 @@
 (function () {
 
   /* =========================================================
-     ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+     ОБЩИЕ ФУНКЦИИ
      ========================================================= */
 
   function escapeHtml(value) {
@@ -43,53 +43,114 @@
     return months[date.getMonth()];
   }
 
+  function getRussianWeekday(date) {
+    var days = [
+      "ВОСКРЕСЕНЬЕ",
+      "ПОНЕДЕЛЬНИК",
+      "ВТОРНИК",
+      "СРЕДА",
+      "ЧЕТВЕРГ",
+      "ПЯТНИЦА",
+      "СУББОТА"
+    ];
+
+    return days[date.getDay()];
+  }
+
 
   /* =========================================================
-     ПОЗИЦИОНИРОВАНИЕ ВСПЛЫВАЮЩЕЙ КАРТОЧКИ
+     НАША ВЕРХНЯЯ ПАНЕЛЬ
+     ========================================================= */
+
+  function setDobroHeader() {
+
+    if (typeof scheduler === "undefined") {
+      return;
+    }
+
+    /*
+     * Используем штатную систему DHTMLX.
+     * Первая строка — месяц и год.
+     * Вторая — назад, вперёд, сегодня.
+     *
+     * Hamburger/menu сюда специально не включаем.
+     */
+    scheduler.config.header = {
+      rows: [
+        {
+          cols: [
+            "date",
+            "spacer"
+          ]
+        },
+        {
+          cols: [
+            "prev",
+            "next",
+            "today",
+            "spacer"
+          ]
+        }
+      ]
+    };
+  }
+
+
+  /* =========================================================
+     ПОЗИЦИЯ ВСПЛЫВАЮЩЕЙ КАРТОЧКИ
      ========================================================= */
 
   function repositionQuickInfo() {
 
     setTimeout(function () {
 
-      var popup = document.querySelector(".dhx_cal_quick_info");
+      var popup =
+        document.querySelector(".dhx_cal_quick_info");
 
       if (!popup) {
         return;
       }
 
-      var rect = popup.getBoundingClientRect();
-      var margin = 20;
+      var rect =
+        popup.getBoundingClientRect();
+
+      var margin = 16;
+
 
       /*
-       * Если карточка выходит за нижний край экрана,
-       * поднимаем её вверх.
+       * Если карточка выходит вниз —
+       * поднимаем её.
        */
       if (rect.bottom > window.innerHeight - margin) {
 
         var overflow =
-          rect.bottom - window.innerHeight + margin;
+          rect.bottom -
+          window.innerHeight +
+          margin;
 
         var currentTop =
           parseFloat(popup.style.top);
 
         if (isNaN(currentTop)) {
-          currentTop = rect.top + window.scrollY;
+          currentTop =
+            rect.top + window.scrollY;
         }
 
         popup.style.top =
           Math.max(
             margin,
-            currentTop - overflow - 10
+            currentTop - overflow - 8
           ) + "px";
       }
 
-      /*
-       * Не позволяем карточке уйти выше окна.
-       */
-      var newRect = popup.getBoundingClientRect();
 
-      if (newRect.top < margin) {
+      /*
+       * Не даём карточке уйти выше окна.
+       */
+      var corrected =
+        popup.getBoundingClientRect();
+
+      if (corrected.top < margin) {
 
         var top =
           parseFloat(popup.style.top);
@@ -99,7 +160,8 @@
         }
 
         popup.style.top =
-          (top + margin - newRect.top) + "px";
+          (top + margin - corrected.top) +
+          "px";
       }
 
     }, 40);
@@ -107,7 +169,7 @@
 
 
   /* =========================================================
-     ОСНОВНЫЕ ИЗМЕНЕНИЯ OPEN WEB CALENDAR
+     ОСНОВНЫЕ НАСТРОЙКИ
      ========================================================= */
 
   function applyChanges() {
@@ -119,26 +181,88 @@
 
 
     /* ---------------------------------------------------------
-       БОЛЬШОЙ МЕСЯЦ + ГОД
+       HEADER
        --------------------------------------------------------- */
 
-    scheduler.templates.month_date = function (date) {
+    setDobroHeader();
 
-      return (
-        "<div class=\"dobro-month-title\">" +
-          "<div class=\"dobro-month-name\">" +
-            getRussianMonth(date) +
-          "</div>" +
-          "<div class=\"dobro-month-year\">" +
-            date.getFullYear() +
-          "</div>" +
-        "</div>"
+
+    /*
+     * OWC сам пересобирает header при смене месяца
+     * и изменении размера окна.
+     * Поэтому после его действий снова возвращаем наш header.
+     */
+
+    if (!window.dobroHeaderEventsAttached) {
+
+      window.dobroHeaderEventsAttached = true;
+
+      scheduler.attachEvent(
+        "onBeforeViewChange",
+        function () {
+          setDobroHeader();
+          return true;
+        }
       );
-    };
+
+      scheduler.attachEvent(
+        "onSchedulerResize",
+        function () {
+          setDobroHeader();
+          return true;
+        }
+      );
+    }
 
 
     /* ---------------------------------------------------------
-       ЗАГОЛОВОК ВСПЛЫВАЮЩЕЙ КАРТОЧКИ
+       МЕСЯЦ + ГОД
+       --------------------------------------------------------- */
+
+    scheduler.templates.month_date =
+      function (date) {
+
+        return (
+          "<div class=\"dobro-month-title\">" +
+            "<div class=\"dobro-month-name\">" +
+              getRussianMonth(date) +
+            "</div>" +
+            "<div class=\"dobro-month-year\">" +
+              date.getFullYear() +
+            "</div>" +
+          "</div>"
+        );
+      };
+
+
+    /* ---------------------------------------------------------
+       ДНИ НЕДЕЛИ
+       --------------------------------------------------------- */
+
+    scheduler.templates.month_scale_date =
+      function (date) {
+        return getRussianWeekday(date);
+      };
+
+
+    /* ---------------------------------------------------------
+       НОМЕР ДНЯ
+       ВАЖНО: сам .dhx_month_head больше НЕ переделываем.
+       --------------------------------------------------------- */
+
+    scheduler.templates.month_day =
+      function (date) {
+
+        return (
+          "<span class=\"dobro-day-number\">" +
+            date.getDate() +
+          "</span>"
+        );
+      };
+
+
+    /* ---------------------------------------------------------
+       ВСПЛЫВАЮЩАЯ КАРТОЧКА
        --------------------------------------------------------- */
 
     scheduler.templates.quick_info_title =
@@ -149,9 +273,7 @@
 
 
     /*
-     * Отключаем стандартную строку,
-     * где Open Web Calendar показывал
-     * название календаря / категорию.
+     * Убираем название календаря.
      */
     scheduler.templates.quick_info_date =
       function () {
@@ -159,17 +281,16 @@
       };
 
 
-    /* ---------------------------------------------------------
-       СОДЕРЖИМОЕ ВСПЛЫВАЮЩЕЙ КАРТОЧКИ
-       --------------------------------------------------------- */
-
     scheduler.templates.quick_info_content =
       function (start, end, event) {
 
         var html = "";
 
-        var startTime = formatTime(start);
-        var endTime = formatTime(end);
+        var startTime =
+          formatTime(start);
+
+        var endTime =
+          formatTime(end);
 
 
         /* Время */
@@ -216,14 +337,14 @@
         }
 
 
-        /* event_id Яндекс.Календаря */
+        /* ID события */
 
         var match =
           String(event.url || "")
             .match(/event_id=([^&]+)/);
 
 
-        /* Кнопка Подробнее */
+        /* Подробнее */
 
         if (match) {
 
@@ -250,610 +371,901 @@
        СТИЛИ
        ========================================================= */
 
-    if (!document.getElementById("dobro-calendar-style")) {
-
-      var style =
-        document.createElement("style");
-
-      style.id = "dobro-calendar-style";
-
-      style.textContent = `
-
-        /* =====================================================
-           ОСНОВА СТРАНИЦЫ
-           ===================================================== */
-
-        html,
-        body {
-          background:#F5F0E8 !important;
-        }
-
-        body {
-          margin:0 !important;
-          padding:28px !important;
-          box-sizing:border-box !important;
-        }
-
-        .dhx_cal_container {
-          background:#FBF8F2 !important;
-          border-radius:34px !important;
-          overflow:hidden !important;
-          box-shadow:
-            0 12px 35px rgba(40,30,20,0.06) !important;
-        }
-
-
-        /* =====================================================
-           ВЕРХНЯЯ ЧАСТЬ
-           ===================================================== */
-
-        .dhx_cal_navline {
-          height:190px !important;
-          background:#FBF8F2 !important;
-          border:0 !important;
-        }
-
-
-        /* Большой месяц */
-
-        .dhx_cal_date {
-          position:absolute !important;
-          top:28px !important;
-          left:38px !important;
-          width:auto !important;
-          height:auto !important;
-          line-height:1 !important;
-          text-align:left !important;
-          color:#111111 !important;
-        }
-
-        .dobro-month-title {
-          display:flex !important;
-          flex-direction:column !important;
-          align-items:flex-start !important;
-        }
-
-        .dobro-month-name {
-          font-size:46px !important;
-          line-height:0.95 !important;
-          font-weight:900 !important;
-          letter-spacing:-1.8px !important;
-          color:#111111 !important;
-        }
-
-        .dobro-month-year {
-          margin-top:7px !important;
-          font-size:32px !important;
-          line-height:1 !important;
-          font-weight:400 !important;
-          color:#111111 !important;
-        }
-
-
-        /* =====================================================
-           КНОПКИ НАЗАД / ВПЕРЁД / СЕГОДНЯ
-           ===================================================== */
-
-        .dhx_cal_prev_button,
-        .dhx_cal_next_button,
-        .dhx_cal_today_button {
-          top:130px !important;
-          height:42px !important;
-          border:1px solid #E5DDD1 !important;
-          border-radius:13px !important;
-          background:#F7F1E8 !important;
-          box-shadow:none !important;
-          color:#111111 !important;
-          font-weight:600 !important;
-          transition:
-            background .15s ease,
-            transform .15s ease !important;
-        }
-
-        .dhx_cal_prev_button:hover,
-        .dhx_cal_next_button:hover,
-        .dhx_cal_today_button:hover {
-          background:#EFE7DB !important;
-        }
-
-        .dhx_cal_prev_button:active,
-        .dhx_cal_next_button:active,
-        .dhx_cal_today_button:active {
-          transform:scale(.97) !important;
-        }
-
-
-        .dhx_cal_prev_button {
-          left:38px !important;
-          width:58px !important;
-        }
-
-        .dhx_cal_next_button {
-          left:106px !important;
-          width:58px !important;
-        }
-
-        .dhx_cal_today_button {
-          left:174px !important;
-          width:105px !important;
-        }
-
-
-        /*
-         * Убираем меню-гамбургер:
-         * справа сверху пока ничего не размещаем.
-         */
-
-        .dhx_cal_tab,
-        .dhx_cal_navline .dhx_cal_menu_button,
-        .dhx_cal_menu_button {
-          display:none !important;
-        }
-
-
-        /* =====================================================
-           ШАПКА ДНЕЙ НЕДЕЛИ
-           ===================================================== */
-
-        .dhx_cal_header {
-          background:#FBF8F2 !important;
-          border-top:1px solid #DED5C8 !important;
-          border-bottom:1px solid #DED5C8 !important;
-        }
-
-        .dhx_scale_bar {
-          background:#FBF8F2 !important;
-          border-color:#DED5C8 !important;
-          color:#171717 !important;
-          font-size:13px !important;
-          font-weight:800 !important;
-          text-transform:uppercase !important;
-        }
-
-
-        /* =====================================================
-           СЕТКА КАЛЕНДАРЯ
-           ===================================================== */
-
-        .dhx_cal_data {
-          background:#FBF8F2 !important;
-        }
-
-        .dhx_month_body {
-          background:#FBF8F2 !important;
-          border-color:#D8D0C5 !important;
-        }
-
-        .dhx_month_head {
-          background:transparent !important;
-          border:0 !important;
-
-          /*
-           * Тёмная плашка с номером дня
-           */
-          color:#FFFFFF !important;
-          background:#171717 !important;
-
-          width:36px !important;
-          height:30px !important;
-
-          margin:0 !important;
-          padding:0 !important;
-
-          display:flex !important;
-          align-items:center !important;
-          justify-content:center !important;
-
-          border-radius:6px !important;
-
-          font-size:13px !important;
-          font-weight:800 !important;
-
-          line-height:30px !important;
-
-          position:relative !important;
-          top:7px !important;
-          left:7px !important;
-
-          box-sizing:border-box !important;
-        }
-
-
-        /*
-         * Ячейки сетки остаются прямыми:
-         * специально НЕ добавляем border-radius.
-         */
-
-        .dhx_cal_data table,
-        .dhx_cal_data td {
-          border-color:#D8D0C5 !important;
-        }
-
-
-        /* =====================================================
-           СОБЫТИЯ
-           ===================================================== */
-
-        .dhx_cal_event_clear {
-          margin-left:7px !important;
-          margin-right:7px !important;
-          padding:7px 11px !important;
-
-          min-height:30px !important;
-          height:auto !important;
-
-          border-radius:8px !important;
-
-          font-size:12px !important;
-          line-height:1.25 !important;
-          font-weight:600 !important;
-
-          white-space:normal !important;
-          overflow:hidden !important;
-          text-overflow:ellipsis !important;
-
-          box-sizing:border-box !important;
-
-          box-shadow:none !important;
-        }
-
-
-        /*
-         * Первый календарь — фиолетовый
-         */
-
-        .CALENDAR-INDEX-0,
-        .CALENDAR-INDEX-0 .dhx_body,
-        .CALENDAR-INDEX-0 .dhx_title {
-          background:#CFA6F2 !important;
-          color:#171717 !important;
-          border-color:#CFA6F2 !important;
-          border-radius:8px !important;
-        }
-
-
-        /*
-         * Второй календарь — оранжевый
-         */
-
-        .CALENDAR-INDEX-1,
-        .CALENDAR-INDEX-1 .dhx_body,
-        .CALENDAR-INDEX-1 .dhx_title {
-          background:#FFB454 !important;
-          color:#171717 !important;
-          border-color:#FFB454 !important;
-          border-radius:8px !important;
-        }
-
-
-        /* Убираем декоративную точку */
-
-        .dhx_cal_event_clear::before,
-        .dhx_cal_qi_tcontent::before {
-          display:none !important;
-        }
-
-
-        /* =====================================================
-           ВСПЛЫВАЮЩАЯ КАРТОЧКА
-           ===================================================== */
-
-        .dhx_cal_quick_info {
-
-          width:330px !important;
-          max-width:calc(100vw - 40px) !important;
-
-          height:auto !important;
-
-          padding:0 !important;
-
-          background:#FBF8F2 !important;
-
-          border:1px solid #E5DDD1 !important;
-          border-radius:22px !important;
-
-          box-shadow:
-            0 15px 38px rgba(35,25,15,0.15) !important;
-
-          overflow:hidden !important;
-        }
-
-
-        /* Верх карточки */
-
-        .dhx_cal_qi_title {
-          position:relative !important;
-
-          height:auto !important;
-          min-height:0 !important;
-
-          padding:24px 48px 7px 24px !important;
-
-          background:#FBF8F2 !important;
-
-          border:0 !important;
-        }
-
-
-        /* Полное название */
-
-        .dhx_cal_qi_tcontent {
-
-          height:auto !important;
-          min-height:0 !important;
-
-          padding:0 !important;
-          margin:0 !important;
-
-          white-space:normal !important;
-
-          overflow:visible !important;
-          text-overflow:clip !important;
-
-          overflow-wrap:anywhere !important;
-          word-break:normal !important;
-
-          color:#171717 !important;
-
-          font-size:23px !important;
-          line-height:1.15 !important;
-          font-weight:800 !important;
-        }
-
-
-        /*
-         * Стандартная строка календаря скрыта.
-         */
-
-        .dhx_cal_qi_tdate {
-          display:none !important;
-        }
-
-
-        /*
-         * Кнопка закрытия
-         */
-
-        .dhx_cal_qi_close {
-          position:absolute !important;
-          top:18px !important;
-          right:18px !important;
-
-          width:30px !important;
-          height:30px !important;
-
-          border-radius:50% !important;
-
-          background:transparent !important;
-
-          color:#171717 !important;
-        }
-
-
-        /* Содержимое */
-
-        .dhx_cal_qi_content {
-
-          padding:5px 24px 24px 24px !important;
-
-          background:#FBF8F2 !important;
-
-          color:#171717 !important;
-
-          font-size:14px !important;
-          line-height:1.45 !important;
-        }
-
-
-        /*
-         * Время и место идут подряд
-         */
-
-        .dobro-info-line {
-
-          display:flex !important;
-          align-items:flex-start !important;
-
-          gap:9px !important;
-
-          margin:0 0 4px 0 !important;
-          padding:0 !important;
-
-          color:#171717 !important;
-
-          line-height:1.4 !important;
-        }
-
-        .dobro-info-icon {
-
-          display:inline-flex !important;
-
-          width:18px !important;
-          min-width:18px !important;
-
-          justify-content:center !important;
-
-          color:#171717 !important;
-
-          font-size:16px !important;
-          line-height:1.25 !important;
-        }
-
-
-        /* Подробнее */
-
-        .dobro-details-button {
-
-          display:block !important;
-
-          width:100% !important;
-
-          margin:17px 0 0 0 !important;
-          padding:11px 16px !important;
-
-          box-sizing:border-box !important;
-
-          background:transparent !important;
-
-          border:2px solid #7C3AED !important;
-          border-radius:12px !important;
-
-          color:#7C3AED !important;
-
-          font:inherit !important;
-          font-weight:800 !important;
-
-          text-align:center !important;
-
-          cursor:pointer !important;
-          pointer-events:auto !important;
-
-          transition:
-            background .15s ease,
-            color .15s ease,
-            transform .15s ease !important;
-        }
-
-        .dobro-details-button:hover {
-          background:#7C3AED !important;
-          color:#FFFFFF !important;
-        }
-
-        .dobro-details-button:active {
-          transform:scale(.98) !important;
-        }
-
-
-        /*
-         * Добавить в календарь — скрыто
-         */
-
-        .dhx_qi_big_icon.icon_subscribe {
-          display:none !important;
-        }
-
-
-        /* =====================================================
-           МОБИЛЬНАЯ ВЕРСИЯ
-           ===================================================== */
-
-        @media (max-width:700px) {
-
-          body {
-            padding:8px !important;
-          }
-
-          .dhx_cal_container {
-            border-radius:20px !important;
-          }
-
-          .dhx_cal_navline {
-            height:165px !important;
-          }
-
-          .dhx_cal_date {
-            top:22px !important;
-            left:20px !important;
-          }
-
-          .dobro-month-name {
-            font-size:34px !important;
-            letter-spacing:-1px !important;
-          }
-
-          .dobro-month-year {
-            font-size:26px !important;
-          }
-
-          .dhx_cal_prev_button,
-          .dhx_cal_next_button,
-          .dhx_cal_today_button {
-            top:112px !important;
-          }
-
-          .dhx_cal_prev_button {
-            left:20px !important;
-          }
-
-          .dhx_cal_next_button {
-            left:87px !important;
-          }
-
-          .dhx_cal_today_button {
-            left:154px !important;
-          }
-
-          .dhx_scale_bar {
-            font-size:10px !important;
-          }
-
-          .dhx_month_head {
-            width:29px !important;
-            height:26px !important;
-            line-height:26px !important;
-            font-size:11px !important;
-
-            top:5px !important;
-            left:5px !important;
-          }
-
-          .dhx_cal_event_clear {
-
-            margin-left:4px !important;
-            margin-right:4px !important;
-
-            padding:5px 7px !important;
-
-            font-size:10px !important;
-          }
-
-          .dhx_cal_quick_info {
-            width:calc(100vw - 28px) !important;
-            max-width:360px !important;
-          }
-
-          .dhx_cal_qi_title {
-            padding:
-              20px 44px 6px 20px !important;
-          }
-
-          .dhx_cal_qi_tcontent {
-            font-size:20px !important;
-          }
-
-          .dhx_cal_qi_content {
-            padding:
-              5px 20px 20px 20px !important;
-          }
-
-        }
-
-      `;
-
-      document.head.appendChild(style);
+    var oldStyle =
+      document.getElementById("dobro-calendar-style");
+
+    if (oldStyle) {
+      oldStyle.remove();
     }
 
 
+    var style =
+      document.createElement("style");
+
+    style.id =
+      "dobro-calendar-style";
+
+    style.textContent = `
+
+      /* =====================================================
+         СТРАНИЦА
+         ===================================================== */
+
+      html {
+        background:#F5F0E8 !important;
+      }
+
+      body {
+        margin:0 !important;
+        padding:14px !important;
+
+        min-height:100vh !important;
+
+        box-sizing:border-box !important;
+
+        background:#F5F0E8 !important;
+      }
+
+
+      .dhx_cal_container {
+
+        width:100% !important;
+
+        height:calc(100vh - 28px) !important;
+        min-height:620px !important;
+
+        box-sizing:border-box !important;
+
+        background:#FBF8F2 !important;
+
+        border-radius:30px !important;
+
+        overflow:hidden !important;
+
+        box-shadow:
+          0 10px 30px
+          rgba(45,35,25,0.06) !important;
+      }
+
+
+      /* =====================================================
+         ВЕРХНЯЯ ПАНЕЛЬ
+         ===================================================== */
+
+      .dhx_cal_navline {
+
+        min-height:146px !important;
+        height:146px !important;
+
+        box-sizing:border-box !important;
+
+        padding:
+          22px
+          26px
+          14px
+          26px !important;
+
+        background:#FBF8F2 !important;
+
+        border:0 !important;
+      }
+
+
+      /*
+       * Прячем гамбургер Open Web Calendar.
+       */
+
+      .owc_nav_burger_menu,
+      .hamburger-menu {
+        display:none !important;
+      }
+
+
+      /* =====================================================
+         МЕСЯЦ
+         ===================================================== */
+
+      .dhx_cal_date {
+
+        text-align:left !important;
+
+        justify-content:flex-start !important;
+        align-items:flex-start !important;
+
+        overflow:visible !important;
+
+        color:#111111 !important;
+      }
+
+
+      .dobro-month-title {
+
+        display:flex !important;
+        flex-direction:column !important;
+
+        align-items:flex-start !important;
+        justify-content:flex-start !important;
+
+        width:100% !important;
+
+        text-align:left !important;
+      }
+
+
+      .dobro-month-name {
+
+        margin:0 !important;
+        padding:0 !important;
+
+        font-size:40px !important;
+        line-height:.95 !important;
+
+        font-weight:900 !important;
+
+        letter-spacing:-1.5px !important;
+
+        color:#111111 !important;
+      }
+
+
+      .dobro-month-year {
+
+        margin-top:5px !important;
+
+        font-size:27px !important;
+        line-height:1 !important;
+
+        font-weight:400 !important;
+
+        color:#111111 !important;
+      }
+
+
+      /* =====================================================
+         КНОПКИ НАВИГАЦИИ
+         ===================================================== */
+
+      .dhx_cal_prev_button,
+      .dhx_cal_next_button,
+      .dhx_cal_today_button {
+
+        height:36px !important;
+
+        min-height:36px !important;
+
+        margin-top:4px !important;
+
+        background:#F6EFE6 !important;
+
+        border:
+          1px solid #E2D8CB !important;
+
+        border-radius:11px !important;
+
+        box-shadow:none !important;
+
+        color:#171717 !important;
+
+        font-size:13px !important;
+        font-weight:700 !important;
+      }
+
+
+      .dhx_cal_prev_button,
+      .dhx_cal_next_button {
+
+        width:48px !important;
+        min-width:48px !important;
+      }
+
+
+      .dhx_cal_today_button {
+
+        width:96px !important;
+        min-width:96px !important;
+      }
+
+
+      .dhx_cal_prev_button:hover,
+      .dhx_cal_next_button:hover,
+      .dhx_cal_today_button:hover {
+
+        background:#ECE3D8 !important;
+      }
+
+
+      /* =====================================================
+         ДНИ НЕДЕЛИ
+         ===================================================== */
+
+      .dhx_cal_header {
+
+        background:#FBF8F2 !important;
+
+        border-top:
+          1px solid #D8D0C5 !important;
+
+        border-bottom:
+          1px solid #D8D0C5 !important;
+      }
+
+
+      .dhx_scale_bar {
+
+        background:#FBF8F2 !important;
+
+        border-color:#D8D0C5 !important;
+
+        color:#171717 !important;
+
+        font-size:12px !important;
+
+        font-weight:800 !important;
+
+        line-height:1.1 !important;
+
+        text-transform:uppercase !important;
+      }
+
+
+      /* =====================================================
+         СЕТКА
+         ===================================================== */
+
+      .dhx_cal_data {
+        background:#FBF8F2 !important;
+      }
+
+
+      .dhx_month_body {
+
+        background:#FBF8F2 !important;
+
+        border-color:#D8D0C5 !important;
+      }
+
+
+      /*
+       * Ключевое исправление.
+       *
+       * Сам контейнер номера дня остаётся штатного размера.
+       * Мы больше НЕ превращаем его во flex,
+       * НЕ задаём ему ширину 36px
+       * и НЕ двигаем position/top/left.
+       */
+
+      .dhx_month_head {
+
+        background:#FBF8F2 !important;
+
+        border-color:#D8D0C5 !important;
+
+        color:#171717 !important;
+
+        text-align:left !important;
+
+        box-sizing:border-box !important;
+      }
+
+
+      /*
+       * Чёрная плашка теперь находится ВНУТРИ
+       * штатного контейнера номера дня.
+       */
+
+      .dobro-day-number {
+
+        display:inline-flex !important;
+
+        align-items:center !important;
+        justify-content:center !important;
+
+        min-width:26px !important;
+        height:24px !important;
+
+        margin:
+          2px
+          0
+          0
+          6px !important;
+
+        padding:
+          0
+          5px !important;
+
+        box-sizing:border-box !important;
+
+        background:#171717 !important;
+
+        border-radius:5px !important;
+
+        color:#FFFFFF !important;
+
+        font-size:11px !important;
+        line-height:24px !important;
+
+        font-weight:800 !important;
+      }
+
+
+      .dhx_cal_data table,
+      .dhx_cal_data td {
+
+        border-color:#D8D0C5 !important;
+      }
+
+
+      /* =====================================================
+         СОБЫТИЯ
+         ===================================================== */
+
+      .dhx_cal_event_clear {
+
+        margin-left:6px !important;
+        margin-right:6px !important;
+
+        padding:
+          5px
+          9px !important;
+
+        box-sizing:border-box !important;
+
+        border-radius:8px !important;
+
+        font-size:11px !important;
+
+        line-height:1.2 !important;
+
+        font-weight:650 !important;
+
+        white-space:nowrap !important;
+
+        overflow:hidden !important;
+
+        text-overflow:ellipsis !important;
+
+        box-shadow:none !important;
+      }
+
+
+      /*
+       * Фиолетовый календарь
+       */
+
+      .CALENDAR-INDEX-0,
+      .CALENDAR-INDEX-0 .dhx_body,
+      .CALENDAR-INDEX-0 .dhx_title {
+
+        background:#CFA6F2 !important;
+
+        border-color:#CFA6F2 !important;
+
+        color:#171717 !important;
+
+        border-radius:8px !important;
+      }
+
+
+      /*
+       * Оранжевый календарь
+       */
+
+      .CALENDAR-INDEX-1,
+      .CALENDAR-INDEX-1 .dhx_body,
+      .CALENDAR-INDEX-1 .dhx_title {
+
+        background:#FFB454 !important;
+
+        border-color:#FFB454 !important;
+
+        color:#171717 !important;
+
+        border-radius:8px !important;
+      }
+
+
+      .dhx_cal_event_clear::before,
+      .dhx_cal_qi_tcontent::before {
+
+        display:none !important;
+      }
+
+
+      /* =====================================================
+         QUICK INFO
+         ===================================================== */
+
+      .dhx_cal_quick_info {
+
+        width:310px !important;
+
+        max-width:
+          calc(100vw - 32px) !important;
+
+        height:auto !important;
+
+        padding:0 !important;
+
+        background:#FBF8F2 !important;
+
+        border:
+          1px solid #E4DACE !important;
+
+        border-radius:20px !important;
+
+        box-shadow:
+          0 14px 34px
+          rgba(40,30,20,0.14) !important;
+
+        overflow:hidden !important;
+      }
+
+
+      .dhx_cal_qi_title {
+
+        position:relative !important;
+
+        height:auto !important;
+
+        min-height:0 !important;
+
+        padding:
+          18px
+          42px
+          5px
+          20px !important;
+
+        box-sizing:border-box !important;
+
+        background:#FBF8F2 !important;
+
+        border:0 !important;
+      }
+
+
+      /*
+       * Здесь главное изменение:
+       * 23px -> 18px.
+       */
+
+      .dhx_cal_qi_tcontent {
+
+        height:auto !important;
+
+        min-height:0 !important;
+
+        margin:0 !important;
+        padding:0 !important;
+
+        color:#171717 !important;
+
+        font-size:18px !important;
+
+        line-height:1.18 !important;
+
+        font-weight:800 !important;
+
+        letter-spacing:0 !important;
+
+        white-space:normal !important;
+
+        overflow:visible !important;
+
+        text-overflow:clip !important;
+
+        overflow-wrap:break-word !important;
+
+        word-break:normal !important;
+      }
+
+
+      .dhx_cal_qi_tdate {
+
+        display:none !important;
+      }
+
+
+      .dhx_cal_qi_content {
+
+        padding:
+          4px
+          20px
+          20px
+          20px !important;
+
+        box-sizing:border-box !important;
+
+        background:#FBF8F2 !important;
+
+        color:#171717 !important;
+
+        font-size:13px !important;
+
+        line-height:1.35 !important;
+      }
+
+
+      .dobro-info-line {
+
+        display:flex !important;
+
+        align-items:flex-start !important;
+
+        gap:7px !important;
+
+        margin:
+          0
+          0
+          3px
+          0 !important;
+
+        padding:0 !important;
+
+        color:#171717 !important;
+
+        font-size:13px !important;
+
+        line-height:1.35 !important;
+      }
+
+
+      .dobro-info-icon {
+
+        display:inline-flex !important;
+
+        width:16px !important;
+        min-width:16px !important;
+
+        align-items:center !important;
+        justify-content:center !important;
+
+        color:#171717 !important;
+
+        font-size:14px !important;
+
+        line-height:1.2 !important;
+      }
+
+
+      /* =====================================================
+         КНОПКА ПОДРОБНЕЕ
+         ===================================================== */
+
+      .dobro-details-button {
+
+        display:block !important;
+
+        width:100% !important;
+
+        margin:
+          13px
+          0
+          0
+          0 !important;
+
+        padding:
+          9px
+          13px !important;
+
+        box-sizing:border-box !important;
+
+        background:transparent !important;
+
+        border:
+          2px solid #7C3AED !important;
+
+        border-radius:11px !important;
+
+        color:#7C3AED !important;
+
+        font:inherit !important;
+
+        font-size:13px !important;
+
+        font-weight:800 !important;
+
+        line-height:1.2 !important;
+
+        text-align:center !important;
+
+        cursor:pointer !important;
+
+        pointer-events:auto !important;
+      }
+
+
+      .dobro-details-button:hover {
+
+        background:#7C3AED !important;
+
+        color:#FFFFFF !important;
+      }
+
+
+      .dhx_qi_big_icon.icon_subscribe {
+
+        display:none !important;
+      }
+
+
+      /* =====================================================
+         ПЛАНШЕТЫ
+         ===================================================== */
+
+      @media
+      (max-width:1000px) {
+
+        body {
+          padding:8px !important;
+        }
+
+
+        .dhx_cal_container {
+
+          height:
+            calc(100vh - 16px) !important;
+
+          border-radius:22px !important;
+        }
+
+
+        .dhx_cal_navline {
+
+          min-height:130px !important;
+
+          height:130px !important;
+
+          padding:
+            18px
+            20px
+            10px
+            20px !important;
+        }
+
+
+        .dobro-month-name {
+
+          font-size:32px !important;
+
+          letter-spacing:-1px !important;
+        }
+
+
+        .dobro-month-year {
+
+          font-size:23px !important;
+        }
+
+
+        .dhx_scale_bar {
+
+          font-size:10px !important;
+        }
+
+
+        .dhx_cal_event_clear {
+
+          margin-left:3px !important;
+          margin-right:3px !important;
+
+          padding:
+            4px
+            6px !important;
+
+          font-size:10px !important;
+        }
+
+      }
+
+
+      /* =====================================================
+         МОБИЛЬНАЯ ВЕРСИЯ
+         ===================================================== */
+
+      @media
+      (max-width:650px) {
+
+        body {
+
+          padding:4px !important;
+        }
+
+
+        .dhx_cal_container {
+
+          width:100% !important;
+
+          height:
+            calc(100vh - 8px) !important;
+
+          min-height:600px !important;
+
+          border-radius:16px !important;
+        }
+
+
+        .dhx_cal_navline {
+
+          min-height:112px !important;
+
+          height:112px !important;
+
+          padding:
+            14px
+            12px
+            8px
+            12px !important;
+        }
+
+
+        .dobro-month-name {
+
+          font-size:27px !important;
+
+          letter-spacing:-.5px !important;
+        }
+
+
+        .dobro-month-year {
+
+          margin-top:3px !important;
+
+          font-size:20px !important;
+        }
+
+
+        .dhx_cal_prev_button,
+        .dhx_cal_next_button {
+
+          width:40px !important;
+
+          min-width:40px !important;
+
+          height:32px !important;
+
+          min-height:32px !important;
+        }
+
+
+        .dhx_cal_today_button {
+
+          width:82px !important;
+
+          min-width:82px !important;
+
+          height:32px !important;
+
+          min-height:32px !important;
+
+          font-size:11px !important;
+        }
+
+
+        .dhx_scale_bar {
+
+          font-size:8px !important;
+
+          font-weight:700 !important;
+        }
+
+
+        .dobro-day-number {
+
+          min-width:21px !important;
+
+          height:20px !important;
+
+          margin-left:3px !important;
+
+          padding:
+            0
+            3px !important;
+
+          border-radius:4px !important;
+
+          font-size:9px !important;
+
+          line-height:20px !important;
+        }
+
+
+        .dhx_cal_event_clear {
+
+          margin-left:2px !important;
+
+          margin-right:2px !important;
+
+          padding:
+            3px
+            4px !important;
+
+          border-radius:5px !important;
+
+          font-size:8px !important;
+
+          line-height:1.15 !important;
+        }
+
+
+        .dhx_cal_quick_info {
+
+          width:
+            calc(100vw - 20px) !important;
+
+          max-width:320px !important;
+        }
+
+
+        .dhx_cal_qi_title {
+
+          padding:
+            16px
+            38px
+            4px
+            17px !important;
+        }
+
+
+        .dhx_cal_qi_tcontent {
+
+          font-size:16px !important;
+        }
+
+
+        .dhx_cal_qi_content {
+
+          padding:
+            3px
+            17px
+            17px
+            17px !important;
+
+          font-size:12px !important;
+        }
+
+
+        .dobro-info-line {
+
+          font-size:12px !important;
+        }
+
+
+        .dobro-details-button {
+
+          margin-top:11px !important;
+
+          padding:
+            8px
+            11px !important;
+
+          font-size:12px !important;
+        }
+
+      }
+
+    `;
+
+    document.head.appendChild(style);
+
+
     /* =========================================================
-       ПОЗИЦИЯ QUICK INFO
+       QUICK INFO POSITION
        ========================================================= */
 
     if (!window.dobroQuickInfoPositionAttached) {
 
       window.dobroQuickInfoPositionAttached = true;
 
-      if (typeof scheduler.attachEvent === "function") {
+      scheduler.attachEvent(
+        "onQuickInfo",
+        function () {
 
-        scheduler.attachEvent(
-          "onQuickInfo",
-          function () {
+          repositionQuickInfo();
 
-            repositionQuickInfo();
+          return true;
+        }
+      );
 
-            return true;
-          }
-        );
-      }
 
       window.addEventListener(
         "resize",
@@ -863,18 +1275,19 @@
 
 
     /*
-     * Перерисовываем календарь, чтобы сразу применился
-     * новый шаблон месяца.
+     * Перерисовываем после смены шаблонов.
      */
     try {
+
       scheduler.updateView();
+
     } catch (e) {}
   }
 
 
   /* =========================================================
-     КНОПКА «ПОДРОБНЕЕ»
-     Рабочую логику V1/V2 сохраняем.
+     РАБОЧАЯ КНОПКА «ПОДРОБНЕЕ»
+     ЭТУ ЛОГИКУ НЕ МЕНЯЕМ.
      ========================================================= */
 
   document.addEventListener(
@@ -882,7 +1295,9 @@
     function (e) {
 
       var button =
-        e.target.closest(".dobro-details-button");
+        e.target.closest(
+          ".dobro-details-button"
+        );
 
       if (button) {
         e.stopPropagation();
@@ -897,7 +1312,9 @@
     function (e) {
 
       var button =
-        e.target.closest(".dobro-details-button");
+        e.target.closest(
+          ".dobro-details-button"
+        );
 
       if (!button) {
         return;
@@ -907,7 +1324,9 @@
       e.stopPropagation();
 
       var url =
-        button.getAttribute("data-url");
+        button.getAttribute(
+          "data-url"
+        );
 
       if (url) {
         window.location.assign(url);
@@ -921,6 +1340,9 @@
      ЗАПУСК
      ========================================================= */
 
-  setTimeout(applyChanges, 1500);
+  setTimeout(
+    applyChanges,
+    1500
+  );
 
 })();
